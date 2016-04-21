@@ -1,0 +1,106 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.cisco.cmx.mobile-app-server</groupId>
+    <artifactId>cmx-mobile-app-server-model</artifactId>
+    <name>CMX Mobile App Server Model</name>
+    <url>http://maven.apache.org</url>
+
+    <parent>
+        <groupId>com.cisco.cmx.mobile-app-server</groupId>
+        <artifactId>cmx-mobile-app-server-parent-pom</artifactId>
+        <version>1.1.1.16-SNAPSHOT</version>
+    </parent>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.cisco.ipcentral</groupId>
+                <artifactId>maven-ipcentral-plugin</artifactId>
+                <version>4.18.5</version>
+                <goals>
+                    <goal>ipcentral</goal>
+                </goals>
+                <configuration>
+                    <businessUnit>WNBU</businessUnit>
+                    <componentEditorsGrouper>cmx-mob-app-dev</componentEditorsGrouper>
+                    <assetEditorsGrouper>cmx-mob-app-dev</assetEditorsGrouper>
+                    <username>ehoewisc</username>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>javax.activation</groupId>
+                        <artifactId>activation</artifactId>
+                        <version>1.1.1</version>
+                        <scope>compile</scope>
+                    </dependency>
+                    <dependency>
+                        <groupId>javax.mail</groupId>
+                        <artifactId>mail</artifactId>
+                        <version>1.4.4</version>
+                        <scope>compile</scope>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+    </build>
+    <dependencies>
+         <!-- Logging Dependency -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.5</version>
+        </dependency>
+ 
+         <!-- Redis -->
+        <dependency>
+            <groupId>redis.clients</groupId>
+            <artifactId>jedis</artifactId>
+            <version>2.4.0</version>
+            <type>jar</type>
+            <scope>compile</scope>
+        </dependency>
+         <dependency>
+            <groupId>com.cisco.mse</groupId>
+            <artifactId>restapi</artifactId>
+            <version>1.0.12</version>
+        </dependency>
+        <dependency>
+            <groupId>com.vividsolutions</groupId>
+            <artifactId>jts</artifactId>
+            <version>1.13</version>
+        </dependency>
+
+        <!-- Spring -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>3.1.1.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>3.1.1.RELEASE</version>
+        </dependency>
+
+        <!-- Spring Security -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-config</artifactId>
+            <version>3.1.4.RELEASE</version>
+        </dependency>
+        
+        <!-- Local Cache -->
+        <dependency>
+        <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>17.0</version>
+        </dependency>
+    </dependencies>
+</project>

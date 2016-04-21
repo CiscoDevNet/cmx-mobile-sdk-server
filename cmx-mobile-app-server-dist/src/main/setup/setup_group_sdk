@@ -1,0 +1,71 @@
+#
+# group_sdk
+#
+
+test_group_sdk() {
+    return $RC_EXEC
+}
+
+prompt_group_sdk() {
+cat <<EOF >&2
+
+EOF
+}
+
+print_default_group_sdk() {
+    print_default_sdk_username
+    print_default_sdk_password
+}
+
+print_current_group_sdk() {
+    print_current_sdk_username
+    print_current_sdk_password
+}
+
+read_group_sdk() {
+    if [ ! -n "$input_group_sdk" ]; then
+        input_group_password="$SKIP_INPUT"
+    fi
+    read_default "Configure SDK credentials? (Y)es/(S)kip/(U)se default" "$1"
+}
+
+validate_group_sdk() {
+    validate_group_reply
+
+    if [ $? -eq $RC_OK ]; then
+        input_group_sdk="$input_group_reply"
+
+        if [ $1 != $input_group_sdk ]; then
+            if [ $1 = $RESET_INPUT -a $input_group_sdk = $SKIP_INPUT ]; then
+                print_current_sdk_username
+                print_current_sdk_password
+            elif [ $input_group_sdk = $RESET_INPUT ]; then
+                reset_sdk_username
+                reset_sdk_password
+            fi
+        fi
+
+        return $RC_OK
+    else
+        return $RC_ERROR
+    fi
+}
+
+apply_group_sdk() {
+    return $RC_OK
+}
+
+is_configured_group_sdk() {
+    # Check if credentials are configured
+    if [ "$input_group_sdk" = "$SKIP_INPUT" ]; then
+        if [ ! -n "$curr_sdk_username" -o ! -n "$curr_sdk_password" ]; then
+			SDK_PASSWORD_CHECK=`wc -m $SDK_USER_PROP_FILE  | awk '{print $1}'`
+			if [ $SDK_PASSWORD_CHECK -le 0 ]; then
+				echo "Credentials: Not configured" >& 2
+				return $RC_ERROR
+			fi
+        fi
+    fi
+
+    return $RC_OK
+}

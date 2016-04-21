@@ -1,0 +1,494 @@
+#/bin/sh
+CMX_BASE_DIR=/opt/cmx-mobile-app-server
+CMX_LAUNCH_LOG=$CMX_BASE_DIR/logs/cmx-launch.log
+CMX_LAUNCH_ROTATE_LOG=$CMX_BASE_DIR/logs/cmx-launch.log.1
+CMX_LAUNCH_LOG_MAX_SIZE=100
+CMX_REDIS_DIR=$CMX_BASE_DIR/redis
+CMX_APACHE_DIR=$CMX_BASE_DIR/apache-tomcat
+CMX_APACHE_CONF_FIILE=$CMX_APACHE_DIR/conf/server.xml
+CMX_USER_PROP_FILE=$CMX_APACHE_DIR/webapps/cmx-cloud-server/WEB-INF/classes/config/user.properties
+CMX_APACHE_SERVER_PORT=`cat $CMX_APACHE_CONF_FIILE | grep 'Connector port="[0-9]*"' | sed 's/^.*Connector port=\"//' | sed 's/\".*//'`
+CMX_APACHE_PID=$CMX_APACHE_DIR/logs/apache.pid
+CMX_SDK_APACHE_DIR=$CMX_BASE_DIR/apache-tomcat-sdk
+CMX_SDK_APACHE_CONF_FIILE=$CMX_SDK_APACHE_DIR/conf/server.xml
+CMX_SDK_USER_PROP_FILE=$CMX_SDK_APACHE_DIR/webapps/cmx-cloud-server-sdk/WEB-INF/classes/config/user.properties
+CMX_SDK_USER_PROP_FILE_SIZE=`cat $CMX_SDK_USER_PROP_FILE | wc -w`
+CMX_SDK_APACHE_SERVER_PORT=`cat $CMX_SDK_APACHE_CONF_FIILE | grep 'Connector port="[0-9]*"' | sed 's/^.*Connector port=\"//' | sed 's/\".*//'`
+CMX_SDK_APACHE_PID=$CMX_SDK_APACHE_DIR/logs/apache.pid
+CMX_USER=nobody
+export JAVA_HOME=$CMX_BASE_DIR/java
+export PATH=/opt/cmx-mobile-app-server/java/bin:$PATH
+
+#-------
+# Check if log file needs to be rotated
+#-------
+if [ -f $CMX_LAUNCH_LOG ]; then
+    CMX_LAUNCH_LOG_SIZE=`du -m $CMX_LAUNCH_LOG | awk '{print $1}'`
+    if [ $CMX_LAUNCH_LOG_SIZE -ge "$CMX_LAUNCH_LOG_MAX_SIZE" ]; then
+        echo "{`date`} Log file has reached maximum size and will be rotated" >> $CMX_LAUNCH_LOG 2>&1
+        mv $CMX_LAUNCH_LOG $CMX_LAUNCH_ROTATE_LOG
+    fi
+fi
+
+case "$1" in
+    start)
+        echo "{`date`} Starting CMX Mobile App Server ..."
+        echo "{`date`} Starting CMX Mobile App Server ..." >> $CMX_LAUNCH_LOG 2>&1
+        
+        #-------
+        # Check if the Redis PID file exists. If the file exists then check for the PID and if running stop attempting to start.
+        # The service is already running and does not need to be started. The stop can be run if the service should not be running
+        #-------
+        if [ -f $CMX_REDIS_DIR/var/*.pid ]; then
+            echo "{`date`} Found an existing Redis PID file. Will verify if process is running" >> $CMX_LAUNCH_LOG 2>&1
+            for y in $CMX_REDIS_DIR/var/*.pid; do
+                cat $y  | awk '{print "ps -p " $0}' | sh >> $CMX_LAUNCH_LOG 2>&1
+                RC=${PIPESTATUS[0]}
+                if [ $RC -ne "0" ]; then 
+                    echo "{`date`} Redis process does not exist. PID file will be removed" >> $CMX_LAUNCH_LOG 2>&1
+                    rm -f $y >> $CMX_LAUNCH_LOG 2>&1
+                else
+                    echo "CMX Mobile App Server Redis service is still running. Run stop option to stop server" 
+                    echo "{`date`}  CMX Mobile App Server Redis service is still running. Run stop option to stop server" >> $CMX_LAUNCH_LOG 2>&1
+                    exit 1
+                fi
+            done
+        fi
+        
+        #-------
+        # Attempt to start each Redis instance which has been configured
+        #-------
+        for y in $CMX_REDIS_DIR/init.d/cmx-mobile-app-redis-*; do
+            echo "{`date`} Starting CMX Mobile App Server Redis: $y" >> $CMX_LAUNCH_LOG 2>&1
+            su -p -s /bin/sh $CMX_USER $y start >> $CMX_LAUNCH_LOG 2>&1
+            echo "{`date`} Completed starting CMX Mobile App Server Redis: $y" >> $CMX_LAUNCH_LOG 2>&1
+        done
+        
+        #-------
+        # Verify if Redis is running by running the Redis CLI ping command
+        #-------
+        CMX_START_REDIS_COUNTER=0
+        CMX_START_REDIS_COUNTER_MAX=120
+        echo "{`date`} Attempting to validate if CMX Mobile App Server Redis is running" >> $CMX_LAUNCH_LOG 2>&1
+        $CMX_REDIS_DIR/bin/redis-cli ping >> $CMX_LAUNCH_LOG 2>&1
+        RC=${PIPESTATUS[0]}
+        while [ $RC -ne "0" ] && [ $CMX_START_REDIS_COUNTER -lt $CMX_START_REDIS_COUNTER_MAX ]; do
+            sleep 1
+            echo "{`date`} Validating if CMX Mobile App Server Redis is running" >> $CMX_LAUNCH_LOG 2>&1
+            $CMX_REDIS_DIR/bin/redis-cli ping >> $CMX_LAUNCH_LOG 2>&1
+            RC=${PIPESTATUS[0]}
+            let CMX_START_REDIS_COUNTER=CMX_START_REDIS_COUNTER+1
+        done
+        
+        #-------
+        # If the Redis ping failed multiple times then fail with error message
+        #-------
+        if [ $RC -ne "0" ]; then
+            echo "{`date`} ERROR: Failed to start CMX Mobile App Server Redis service"
+            echo "{`date`} ERROR: Failed to start CMX Mobile App Server Redis service" >> $CMX_LAUNCH_LOG 2>&1
+            exit 1
+        else
+            echo "{`date`} Successfully validated CMX Mobile App Server Redis is running" >> $CMX_LAUNCH_LOG 2>&1
+        fi
+
+        echo "{`date`} Starting CMX Mobile App Server Apache..."
+        echo "{`date`} Starting CMX Mobile App Server Apache..." >> $CMX_LAUNCH_LOG 2>&1
+        
+        #-------
+        # Attempt to start the Apache instances. There is one main instance and an SDK instance
+        #-------
+        if [ "$2" = "debug" ]; then
+            echo "{`date`} Debug enabled for CMX Mobile App Server ..."
+            echo "{`date`} Debug enabled for CMX Mobile App Server ..." >> $CMX_LAUNCH_LOG 2>&1
+            export CATALINA_PID=$CMX_APACHE_PID
+            export JPDA_ADDRESS=8000
+            echo "{`date`} Starting CMX Mobile App Server Apache with debug enabled" >> $CMX_LAUNCH_LOG 2>&1
+            su -p -s /bin/sh $CMX_USER $CMX_APACHE_DIR/bin/catalina.sh jpda start $CMX_APACHE_DIR >> $CMX_LAUNCH_LOG 2>&1
+            echo "{`date`} Completed starting CMX Mobile App Server Apache with debug enabled" >> $CMX_LAUNCH_LOG 2>&1
+            if [ -f $CMX_SDK_USER_PROP_FILE ] && [ "$CMX_SDK_USER_PROP_FILE_SIZE" == "0" ]; then
+                echo "{`date`} CMX Mobile App Server Apache SDK will not be started since username and password have not been set" >> $CMX_LAUNCH_LOG 2>&1
+            else
+                export CATALINA_PID=$CMX_SDK_APACHE_PID
+                export JPDA_ADDRESS=8001
+                echo "{`date`} Starting CMX Mobile App Server Apache SDK with debug enabled" >> $CMX_LAUNCH_LOG 2>&1
+                su -p -s /bin/sh $CMX_USER $CMX_SDK_APACHE_DIR/bin/catalina.sh jpda start $CMX_SDK_APACHE_DIR >> $CMX_LAUNCH_LOG 2>&1
+                echo "{`date`} Completed starting CMX Mobile App Server Apache SDK with debug enabled" >> $CMX_LAUNCH_LOG 2>&1
+            fi
+        else
+            export CATALINA_PID=$CMX_APACHE_PID
+            echo "{`date`} Starting CMX Mobile App Server Apache" >> $CMX_LAUNCH_LOG 2>&1
+            su -p -s /bin/sh $CMX_USER $CMX_APACHE_DIR/bin/startup.sh $CMX_APACHE_DIR >> $CMX_LAUNCH_LOG 2>&1
+            echo "{`date`} Completed starting CMX Mobile App Server Apache" >> $CMX_LAUNCH_LOG 2>&1
+            if [ -f $CMX_SDK_USER_PROP_FILE ] && [ "$CMX_SDK_USER_PROP_FILE_SIZE" == "0" ]; then
+                echo "{`date`} CMX Mobile App Server Apache SDK will not be started since username and password have not been set" >> $CMX_LAUNCH_LOG 2>&1
+            else
+                export CATALINA_PID=$CMX_SDK_APACHE_PID
+                echo "{`date`} Starting CMX Mobile App Server Apache SDK" >> $CMX_LAUNCH_LOG 2>&1
+                su -p -s /bin/sh $CMX_USER $CMX_SDK_APACHE_DIR/bin/startup.sh $CMX_SDK_APACHE_DIR >> $CMX_LAUNCH_LOG 2>&1
+                echo "{`date`} Completed starting CMX Mobile App Server Apache SDK" >> $CMX_LAUNCH_LOG 2>&1
+            fi
+        fi
+        
+        #-------
+        # Verify the service is running by doing a wget if started once before. If the first time started just verify the WEB
+        # application was deployed since wget will fail in this case
+        #-------
+        if [ -f $CMX_USER_PROP_FILE ]; then
+            echo "{`date`} Validating if CMX Mobile App Server Apache is running" >> $CMX_LAUNCH_LOG 2>&1
+            wget --retry-connrefused -w 2 -t 50 --delete-after --no-check-certificate https://127.0.0.1:$CMX_APACHE_SERVER_PORT/cmx-cloud-server/api/cmxmobileserver/v1/server/started >> $CMX_LAUNCH_LOG 2>&1
+            RC=${PIPESTATUS[0]}
+        else
+            CMX_START_SERVER_COUNTER=0
+            CMX_START_SERVER_COUNTER_MAX=120
+            echo "{`date`} Validating if CMX Mobile App Server Apache is running for first time" >> $CMX_LAUNCH_LOG 2>&1
+            while [ ! -f $CMX_USER_PROP_FILE ] && [ $CMX_START_SERVER_COUNTER -lt $CMX_START_SERVER_COUNTER_MAX ]; do
+               sleep 2
+               let CMX_START_SERVER_COUNTER=CMX_START_SERVER_COUNTER+1
+            done
+            if [ $CMX_START_SERVER_COUNTER -ge $CMX_START_SERVER_COUNTER_MAX ]; then
+                RC=1
+            fi
+            sleep 10
+        fi
+
+        #-------
+        # If the Apache failed to start after multiple checks then fail with error message
+        #-------
+        if [ $RC -ne "0" ]; then
+            echo "{`date`} ERROR: Failed to start CMX Mobile App Server main Apache service"
+            echo "{`date`} ERROR: Failed to start CMX Mobile App Server main Apache service" >> $CMX_LAUNCH_LOG 2>&1
+            exit 1
+        else
+            echo "{`date`} Successfully validated CMX Mobile App Server Apache is running" >> $CMX_LAUNCH_LOG 2>&1
+        fi
+        
+        #-------
+        # Verify the service is running by doing a wget if started once before. If the first time started just verify the WEB
+        # application was deployed since wget will fail in this case
+        #-------
+        if [ -f $CMX_SDK_USER_PROP_FILE ]; then
+            if [ "$CMX_SDK_USER_PROP_FILE_SIZE" != "0" ]; then
+                echo "{`date`} Validating if CMX Mobile App Server Apache SDK is running" >> $CMX_LAUNCH_LOG 2>&1
+                wget --retry-connrefused -w 2 -t 50 --delete-after --no-check-certificate https://127.0.0.1:$CMX_SDK_APACHE_SERVER_PORT/cmx-cloud-server-sdk/api/cmxmobileserver/v1/server/started >> $CMX_LAUNCH_LOG 2>&1
+                RC=${PIPESTATUS[0]}
+            fi
+        else
+            CMX_SDK_START_SERVER_COUNTER=0
+            CMX_SDK_START_SERVER_COUNTER_MAX=120
+            echo "{`date`} Validating if CMX Mobile App Server Apache SDK is running for first time" >> $CMX_LAUNCH_LOG 2>&1
+            while [ ! -f $CMX_SDK_USER_PROP_FILE ] && [ $CMX_SDK_START_SERVER_COUNTER -lt $CMX_SDK_START_SERVER_COUNTER_MAX ]; do
+               sleep 2
+               let CMX_SDK_START_SERVER_COUNTER=CMX_SDK_START_SERVER_COUNTER+1
+            done
+            sleep 10
+        fi
+        
+        #-------
+        # If the Apache SDL failed to start after multiple checks then fail with error message
+        #-------
+        if [ $RC -ne "0" ]; then
+            echo "{`date`} ERROR: Failed to start CMX Mobile App Server main Apache SDK service"
+            echo "{`date`} ERROR: Failed to start CMX Mobile App Server main Apache SDK service" >> $CMX_LAUNCH_LOG 2>&1
+            exit 1
+        else
+            echo "{`date`} Successfully validated CMX Mobile App Server Apache SDK is running" >> $CMX_LAUNCH_LOG 2>&1
+        fi
+
+        #-------
+        # Server has successfully started
+        #-------
+        echo "{`date`} Completed Starting CMX Mobile App Server SDK..."
+        echo "{`date`} Completed Starting CMX Mobile App Server SDK..." >> $CMX_LAUNCH_LOG 2>&1
+        ;;
+    startredis)
+        echo "{`date`} Starting CMX Mobile App Server Redis service ..."
+        echo "{`date`} Starting CMX Mobile App Server Redis service ..." >> $CMX_LAUNCH_LOG 2>&1
+        
+        #-------
+        # Check if the Redis PID file exists. If the file exists then check for the PID and if running stop attempting to start.
+        # The service is already running and does not need to be started. The stop can be run if the service should not be running
+        #-------
+        if [ -f $CMX_REDIS_DIR/var/*.pid ]; then
+            echo "{`date`} Found an existing Redis PID file. Will verify if process is running" >> $CMX_LAUNCH_LOG 2>&1
+            for y in $CMX_REDIS_DIR/var/*.pid; do
+                cat $y  | awk '{print "ps -p " $0}' | sh >> $CMX_LAUNCH_LOG 2>&1
+                RC=${PIPESTATUS[0]}
+                if [ $RC -ne "0" ]; then 
+                    echo "{`date`} Redis process does not exist. PID file will be removed" >> $CMX_LAUNCH_LOG 2>&1
+                    rm -f $y >> $CMX_LAUNCH_LOG 2>&1
+                else
+                    echo "CMX Mobile App Server Redis service is still running. Run stop option to stop server" 
+                    echo "{`date`}  CMX Mobile App Server Redis service is still running. Run stop option to stop server" >> $CMX_LAUNCH_LOG 2>&1
+                    exit 1
+                fi
+            done
+        fi
+        
+        #-------
+        # Attempt to start each Redis instance which has been configured
+        #-------
+        for y in $CMX_REDIS_DIR/init.d/cmx-mobile-app-redis-*; do
+            echo "{`date`} Starting CMX Mobile App Server Redis: $y" >> $CMX_LAUNCH_LOG 2>&1
+            su -p -s /bin/sh $CMX_USER $y start >> $CMX_LAUNCH_LOG 2>&1
+            echo "{`date`} Completed starting CMX Mobile App Server Redis: $y" >> $CMX_LAUNCH_LOG 2>&1
+        done
+        
+        #-------
+        # Verify if Redis is running by running the Redis CLI ping command
+        #-------
+        CMX_START_REDIS_COUNTER=0
+        CMX_START_REDIS_COUNTER_MAX=120
+        echo "{`date`} Attempting to validate if CMX Mobile App Server Redis is running" >> $CMX_LAUNCH_LOG 2>&1
+        $CMX_REDIS_DIR/bin/redis-cli ping >> $CMX_LAUNCH_LOG 2>&1
+        RC=${PIPESTATUS[0]}
+        while [ $RC -ne "0" ] && [ $CMX_START_REDIS_COUNTER -lt $CMX_START_REDIS_COUNTER_MAX ]; do
+            sleep 1
+            echo "{`date`} Validating if CMX Mobile App Server Redis is running" >> $CMX_LAUNCH_LOG 2>&1
+            $CMX_REDIS_DIR/bin/redis-cli ping >> $CMX_LAUNCH_LOG 2>&1
+            RC=${PIPESTATUS[0]}
+            let CMX_START_REDIS_COUNTER=CMX_START_REDIS_COUNTER+1
+        done
+        
+        #-------
+        # If the Redis ping failed multiple times then fail with error message
+        #-------
+        if [ $RC -ne "0" ]; then
+            echo "{`date`} ERROR: Failed to start CMX Mobile App Server Redis service"
+            echo "{`date`} ERROR: Failed to start CMX Mobile App Server Redis service" >> $CMX_LAUNCH_LOG 2>&1
+            exit 1
+        else
+            echo "{`date`} Successfully validated CMX Mobile App Server Redis is running" >> $CMX_LAUNCH_LOG 2>&1
+        fi
+        ;;
+    stop)
+        echo "{`date`} Stopping CMX Mobile App Server ..."
+        echo "{`date`} Stopping CMX Mobile App Server ..." >> $CMX_LAUNCH_LOG 2>&1
+
+        #-------
+        # Attempt to stop each Redis instance which has been configured
+        #-------
+        for y in $CMX_REDIS_DIR/init.d/cmx-mobile-app-redis-*; do
+            echo "{`date`} Stopping CMX Mobile App Server Redis: $y" >> $CMX_LAUNCH_LOG 2>&1
+            $y stop >> $CMX_LAUNCH_LOG 2>&1
+            echo "{`date`} Completed stopping CMX Mobile App Server Redis: $y" >> $CMX_LAUNCH_LOG 2>&1
+        done
+
+        #-------
+        # Check if the Redis PID file exists. If the file exists then check for the PID and if running stop attempting to start.
+        # The service is already running and does not need to be started. The stop can be run if the service should not be running
+        #-------
+        if [ -f $CMX_REDIS_DIR/var/*.pid ]; then
+            echo "{`date`} Found an existing Redis PID file. Will terminate process forcefully" >> $CMX_LAUNCH_LOG 2>&1
+            for y in $CMX_REDIS_DIR/var/*.pid; do
+                cat $y  | awk '{print "kill -9 " $0}' | sh >> $CMX_LAUNCH_LOG 2>&1
+                echo "{`date`} Redis PID file will be removed" >> $CMX_LAUNCH_LOG 2>&1
+                rm -f $y >> $CMX_LAUNCH_LOG 2>&1
+            done
+        fi
+
+        echo "{`date`} Stopping CMX Mobile App Server Apache..."
+        echo "{`date`} Stopping CMX Mobile App Server Apache..." >> $CMX_LAUNCH_LOG 2>&1
+
+        #-------
+        # Attempt to stop the Apache instances. There is one main instance and an SDK instance
+        #-------
+        export CATALINA_PID=$CMX_APACHE_PID
+        echo "{`date`} Stopping CMX Mobile App Server Apache" >> $CMX_LAUNCH_LOG 2>&1
+        $CMX_APACHE_DIR/bin/shutdown.sh -force >> $CMX_LAUNCH_LOG 2>&1
+        echo "{`date`} Completed stopping CMX Mobile App Server Apache" >> $CMX_LAUNCH_LOG 2>&1
+        export CATALINA_PID=$CMX_SDK_APACHE_PID
+        echo "{`date`} Stopping CMX Mobile App Server Apache SDK" >> $CMX_LAUNCH_LOG 2>&1
+        $CMX_SDK_APACHE_DIR/bin/shutdown.sh -force >> $CMX_LAUNCH_LOG 2>&1
+        echo "{`date`} Completed stopping CMX Mobile App Server Apache SDK" >> $CMX_LAUNCH_LOG 2>&1
+
+        #-------
+        # Verify the Apache service is stopped by checking if the port used is still listening.
+        #-------
+        CMX_STOP_SERVER_COUNTER=0
+        CMX_STOP_SERVER_COUNTER_MAX=120
+        echo "{`date`} Validating if CMX Mobile App Server Apache is stopped" >> $CMX_LAUNCH_LOG 2>&1
+        while [ "`netstat -an | grep -i listen | grep $CMX_APACHE_SERVER_PORT`" != "" ] && [ $CMX_STOP_SERVER_COUNTER -lt $CMX_STOP_SERVER_COUNTER_MAX ]; do
+           sleep 2
+           let CMX_STOP_SERVER_COUNTER=CMX_STOP_SERVER_COUNTER+1
+        done
+
+        #-------
+        # Check if the Apache PID file exists. If the file exists then forcefully stop the process.
+        #-------
+        if [ -f $CMX_APACHE_DIR/logs/*.pid ]; then
+            echo "{`date`} Found an existing Apache PID file. Will terminate process forcefully" >> $CMX_LAUNCH_LOG 2>&1
+            for y in $CMX_APACHE_DIR/logs/*.pid; do
+                cat $y  | awk '{print "kill -9 " $0}' | sh >> $CMX_LAUNCH_LOG 2>&1
+                echo "{`date`} Apache PID file will be removed" >> $CMX_LAUNCH_LOG 2>&1
+                rm -f $y >> $CMX_LAUNCH_LOG 2>&1
+            done
+        fi
+
+        #-------
+        # Verify the Apache SDK service is stopped by checking if the port used is still listening.
+        #-------
+        CMX_SDK_STOP_SERVER_COUNTER=0
+        CMX_SDK_STOP_SERVER_COUNTER_MAX=120
+        echo "{`date`} Validating if CMX Mobile App Server Apache SDK is stopped" >> $CMX_LAUNCH_LOG 2>&1
+        while [ "`netstat -an | grep -i listen | grep $CMX_SDK_APACHE_SERVER_PORT`" != "" ] && [ $CMX_SDK_STOP_SERVER_COUNTER -lt $CMX_SDK_STOP_SERVER_COUNTER_MAX ]; do
+           sleep 2
+           let CMX_SDK_STOP_SERVER_COUNTER=CMX_SDK_STOP_SERVER_COUNTER+1
+        done
+
+        #-------
+        # Check if the Apache SDK PID file exists. If the file exists then forcefully stop the process.
+        #-------
+        if [ -f $CMX_SDK_APACHE_DIR/logs/*.pid ]; then
+            echo "{`date`} Found an existing Apache SDK PID file. Will terminate process forcefully" >> $CMX_LAUNCH_LOG 2>&1
+            for y in $CMX_SDK_APACHE_DIR/logs/*.pid; do
+                cat $y  | awk '{print "kill -9 " $0}' | sh >> $CMX_LAUNCH_LOG 2>&1
+                echo "{`date`} Apache SDK PID file will be removed" >> $CMX_LAUNCH_LOG 2>&1
+                rm -f $y >> $CMX_LAUNCH_LOG 2>&1
+            done
+        fi
+        
+        #-------
+        # Server has successfully stopped
+        #-------
+        echo "{`date`} Completed Stopping CMX Mobile App Server ..."
+        echo "{`date`} Completed Stopping CMX Mobile App Server ..." >> $CMX_LAUNCH_LOG 2>&1
+        ;;
+    status)
+        echo "{`date`} Getting status of CMX Mobile App Server ..."
+        echo "{`date`} Getting status of CMX Mobile App Server ..." >> $CMX_LAUNCH_LOG 2>&1
+        
+        #-------
+        # Check if the Redis PID file exists. If the file exists then check for the PID
+        #-------
+        CMX_REDIS_CHECK_COMPLETED=0
+        if [ -f $CMX_REDIS_DIR/var/*.pid ]; then
+            echo "{`date`} Found Redis PID files. Will verify if process is running" >> $CMX_LAUNCH_LOG 2>&1
+            for y in $CMX_REDIS_DIR/var/*.pid; do
+                cat $y  | awk '{print "ps -p " $0}' | sh >> $CMX_LAUNCH_LOG 2>&1
+                RC=${PIPESTATUS[0]}
+                if [ $RC -ne "0" ]; then 
+                    echo "{`date`} --CMX Mobile App Server Redis service        : TERMINATED"
+                    echo "{`date`} --CMX Mobile App Server Redis service        : TERMINATED" >> $CMX_LAUNCH_LOG 2>&1
+                    CMX_REDIS_CHECK_COMPLETED=1
+                fi
+            done
+        else
+            echo "{`date`} --CMX Mobile App Server Redis service        : STOPPED"
+            echo "{`date`} --CMX Mobile App Server Redis service        : STOPPED" >> $CMX_LAUNCH_LOG 2>&1
+            CMX_REDIS_CHECK_COMPLETED=1
+        fi
+
+        if [ "$CMX_REDIS_CHECK_COMPLETED" -eq "0" ]; then
+            #-------
+            # Verify if Redis is running by running the Redis CLI ping command
+            #-------
+            echo "{`date`} Attempting to validate if CMX Mobile App Server Redis is running" >> $CMX_LAUNCH_LOG 2>&1
+            $CMX_REDIS_DIR/bin/redis-cli ping >> $CMX_LAUNCH_LOG 2>&1
+            RC=${PIPESTATUS[0]}
+            
+            #-------
+            # If the Redis ping failed then fail with error message
+            #-------
+            if [ $RC -ne "0" ]; then
+                echo "{`date`} --CMX Mobile App Server Redis service        : NOT RESPONDING"
+                echo "{`date`} --CMX Mobile App Server Redis service        : NOT RESPONDING" >> $CMX_LAUNCH_LOG 2>&1
+            else
+                echo "{`date`} --CMX Mobile App Server Redis service        : RUNNING"
+                echo "{`date`} --CMX Mobile App Server Redis service        : RUNNING" >> $CMX_LAUNCH_LOG 2>&1
+            fi
+        fi
+        
+        #-------
+        # Check if the Apache PID file exists. If the file exists then check if process is running.
+        #-------
+        CMX_APACHE_CHECK_COMPLETED=0
+        if [ -f $CMX_APACHE_DIR/logs/*.pid ]; then
+            echo "{`date`} Found existing Apache PID files. Will verify if process is running" >> $CMX_LAUNCH_LOG 2>&1
+            for y in $CMX_APACHE_DIR/logs/*.pid; do
+                cat $y  | awk '{print "ps -p " $0}' | sh >> $CMX_LAUNCH_LOG 2>&1
+                RC=${PIPESTATUS[0]}
+                if [ $RC -ne "0" ]; then 
+                    echo "{`date`} --CMX Mobile App Server Apache service       : TERMINATED"
+                    echo "{`date`} --CMX Mobile App Server Apache service       : TERMINATED" >> $CMX_LAUNCH_LOG 2>&1
+                    CMX_APACHE_CHECK_COMPLETED=1
+                fi
+            done
+        else
+            echo "{`date`} --CMX Mobile App Server Apache service       : STOPPED"
+            echo "{`date`} --CMX Mobile App Server Apache service       : STOPPED" >> $CMX_LAUNCH_LOG 2>&1
+            CMX_APACHE_CHECK_COMPLETED=1
+        fi
+
+        if [ "$CMX_APACHE_CHECK_COMPLETED" -eq "0" ]; then
+            #-------
+            # Verify the service is running by doing a wget
+            #-------
+            echo "{`date`} Validating if CMX Mobile App Server Apache is running" >> $CMX_LAUNCH_LOG 2>&1
+            wget --retry-connrefused -w 2 -t 5 --delete-after --no-check-certificate https://127.0.0.1:$CMX_APACHE_SERVER_PORT/cmx-cloud-server/api/cmxmobileserver/v1/server/started >> $CMX_LAUNCH_LOG 2>&1
+            RC=${PIPESTATUS[0]}
+            
+            #-------
+            # If the Apache request failed then fail with error message
+            #-------
+            if [ $RC -ne "0" ]; then
+                echo "{`date`} --CMX Mobile App Server Apache service       : NOT RESPONDING"
+                echo "{`date`} --CMX Mobile App Server Apache service       : NOT RESPONDING" >> $CMX_LAUNCH_LOG 2>&1
+            else
+                echo "{`date`} --CMX Mobile App Server Apache service       : RUNNING"
+                echo "{`date`} --CMX Mobile App Server Apache service       : RUNNING" >> $CMX_LAUNCH_LOG 2>&1
+            fi
+        fi
+        
+        if [ -f $CMX_SDK_USER_PROP_FILE ] && [ "$CMX_SDK_USER_PROP_FILE_SIZE" == "0" ]; then
+            echo "{`date`} --CMX Mobile App Server Apache SDK service   : NOT ENABLED"
+            echo "{`date`} --CMX Mobile App Server Apache SDK service   : NOT ENABLED" >> $CMX_LAUNCH_LOG 2>&1
+        else
+            #-------
+            # Check if the Apache SDK PID file exists. If the file exists then check if process is running.
+            #-------
+            CMX_APACHE_SDK_CHECK_COMPLETED=0
+            if [ -f $CMX_SDK_APACHE_DIR/logs/*.pid ]; then
+                echo "{`date`} Found an existing Apache SDK PID file. Will verify if process is running" >> $CMX_LAUNCH_LOG 2>&1
+                for y in $CMX_SDK_APACHE_DIR/logs/*.pid; do
+                    cat $y  | awk '{print "ps -p " $0}' | sh >> $CMX_LAUNCH_LOG 2>&1
+                    RC=${PIPESTATUS[0]}
+                    if [ $RC -ne "0" ]; then 
+                        echo "{`date`} --CMX Mobile App Server Apache SDK service   : TERMINATED"
+                        echo "{`date`} --CMX Mobile App Server Apache SDK service   : TERMINATED" >> $CMX_LAUNCH_LOG 2>&1
+                        CMX_APACHE_SDK_CHECK_COMPLETED=1
+                    fi
+                done
+            else
+                echo "{`date`} --CMX Mobile App Server Apache SDK service   : STOPPED"
+                echo "{`date`} --CMX Mobile App Server Apache SDK service   : STOPPED" >> $CMX_LAUNCH_LOG 2>&1
+                CMX_APACHE_SDK_CHECK_COMPLETED=1
+            fi
+            
+            if [ "$CMX_APACHE_SDK_CHECK_COMPLETED" -eq "0" ]; then
+                #-------
+                # Verify the service is running by doing a wget
+                #-------
+                echo "{`date`} Validating if CMX Mobile App Server Apache SDK is running" >> $CMX_LAUNCH_LOG 2>&1
+                wget --retry-connrefused -w 2 -t 5 --delete-after --no-check-certificate https://127.0.0.1:$CMX_SDK_APACHE_SERVER_PORT/cmx-cloud-server-sdk/api/cmxmobileserver/v1/server/started >> $CMX_LAUNCH_LOG 2>&1
+                RC=${PIPESTATUS[0]}
+                
+                #-------
+                # If the Apache request failed then fail with error message
+                #-------
+                if [ $RC -ne "0" ]; then
+                    echo "{`date`} --CMX Mobile App Server Apache SDK service   : NOT RESPONDING"
+                    echo "{`date`} --CMX Mobile App Server Apache SDK service   : NOT RESPONDING" >> $CMX_LAUNCH_LOG 2>&1
+                else
+                    echo "{`date`} --CMX Mobile App Server Apache SDK service   : RUNNING"
+                    echo "{`date`} --CMX Mobile App Server Apache SDK service   : RUNNING" >> $CMX_LAUNCH_LOG 2>&1
+                fi
+            fi
+        fi
+
+        echo "{`date`} Completed getting status of CMX Mobile App Server ..."
+        echo "{`date`} Completed getting status of CMX Mobile App Server ..." >> $CMX_LAUNCH_LOG 2>&1
+        ;;
+    *)
+        echo "Please use start, stop or status as first argument"
+        ;;
+esac

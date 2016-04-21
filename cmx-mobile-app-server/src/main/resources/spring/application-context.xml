@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+    xmlns:util="http://www.springframework.org/schema/util"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:task="http://www.springframework.org/schema/task"    
+    xmlns:mvc="http://www.springframework.org/schema/mvc"
+    xmlns:p="http://www.springframework.org/schema/p" 
+    xsi:schemaLocation="http://www.springframework.org/schema/beans 
+            http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+            http://www.springframework.org/schema/context
+            http://www.springframework.org/schema/context/spring-context-3.1.xsd
+            http://www.springframework.org/schema/mvc 
+            http://www.springframework.org/schema/mvc/spring-mvc-3.1.xsd
+            http://www.springframework.org/schema/task
+            http://www.springframework.org/schema/task/spring-task-3.1.xsd
+            http://www.springframework.org/schema/util 
+        	http://www.springframework.org/schema/util/spring-util-3.1.xsd">
+                        
+    <!-- <context:property-placeholder properties-ref="settingsProperties" /> -->
+            
+    <!-- Activates various annotations to be detected in bean classes -->
+    <context:annotation-config />
+
+    <!-- Scans the classpath of this application for @Components to deploy as beans -->
+    <context:component-scan base-package="com.cisco.cmxmobile" />
+    
+    <!-- Configures the @Controller programming model -->
+    <mvc:annotation-driven />
+    
+    <mvc:resources mapping="/resources/**" location="/resources/" />
+    
+    
+    <!-- <bean id="settingsProperties" class="org.springframework.beans.factory.config.PropertiesFactoryBean"
+        p:location="classpath:/config/redis.properties" />
+    
+    <bean id="sProperties" class="org.springframework.beans.factory.config.PropertiesFactoryBean"
+        p:location="classpath:/config/settings.properties" /> -->
+        
+    <bean id="cmxGatewayAppProperties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer" lazy-init="false">
+     <property name="locations">
+       <list>
+           <value>classpath:/config/redis.properties</value>
+           <value>classpath:/config/settings.properties</value>
+           <value>classpath:/config/email.properties</value>
+       </list>
+    </property>
+ 	</bean>
+       
+    <!-- Resolves view names to protected .jsp resources within the /WEB-INF/views directory -->
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/WEB-INF/views/"/>
+        <property name="suffix" value=".jsp"/>
+        <property name="order" value="1"/>
+    </bean>
+
+    <!-- REDIS CONFIGURATION -->       
+           
+    <!-- Sharding Stuff - Non Spring Approach -->  
+    <bean id="jedisShardInfo_1" class="redis.clients.jedis.JedisShardInfo">
+        <constructor-arg index="0" value="${redis.host-name}" />
+        <constructor-arg index="1" type="int" value="${redis.port-1}" />
+    </bean>
+
+    <!-- creates a java.util.List instance with values loaded from the supplied 
+        'shardList' -->
+    <util:list id="shardList">
+        <ref bean="jedisShardInfo_1" />
+    </util:list>
+    
+	<util:list id="testClientDevices">
+        <!-- Uncomment this code to run with test clients
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:0a:b8:ff:e9:ec"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:0a:b8:ff:e9:ed"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:0a:b8:ff:e9:ef"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:1a:b8:ff:e9:ec"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:1a:b8:ff:e9:ed"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:1a:b8:ff:e9:ef"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:2a:b8:ff:e9:ec"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:2a:b8:ff:e9:ed"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:2a:b8:ff:e9:ef"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:3a:b8:ff:e9:ec"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:3a:b8:ff:e9:ed"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="00:3a:b8:ff:e9:ef"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="77:0a:b8:ff:e9:ec"/>
+		</bean>
+		<bean class="com.cisco.cmxmobile.model.WirelessClient">
+			<property name="macAddress" value="aa:0a:b8:ff:e9:ec"/>
+		</bean>
+        -->
+	</util:list>
+	
+	<bean name="redisPoolConfiguration" class="redis.clients.jedis.JedisPoolConfig"
+            p:maxTotal="${redis.poolConfig.maxTotal}" />
+
+	<bean id="shardedJedisPool" class="redis.clients.jedis.ShardedJedisPool"
+        destroy-method="destroy">
+        <constructor-arg ref="redisPoolConfiguration" />
+        <constructor-arg ref="shardList" /> 
+        <!-- <constructor-arg ref="tagPattern" />
+        <constructor-arg ref="murmurHashingAlgorithm" />  -->
+    </bean>        
+    
+    <!--  Other Beans -->
+    <bean id="mobileServerCacheService" class="com.cisco.cmxmobile.cacheService.service.MobileServerCacheService"/>
+    <bean id="mobileServerCacheClient" class="com.cisco.cmxmobile.cacheService.client.MobileServerCacheRedisClient"/>
+</beans>    

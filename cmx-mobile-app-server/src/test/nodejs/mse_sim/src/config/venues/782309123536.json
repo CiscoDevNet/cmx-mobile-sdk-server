@@ -1,0 +1,9 @@
+{
+"venueId" : "782309123536",
+"streetAddress" : "3625 Cisco Way, San Jose, CA 95131",
+"name" : "Cisco",
+"imageType" : "gif",
+"locationUpdateInterval" : 5,
+"wifiConnectionMode" : "auto",
+"preferredNetwork" : [{"ssid":"alpha","password":""},{"ssid":"blizzard","password":""}]
+}

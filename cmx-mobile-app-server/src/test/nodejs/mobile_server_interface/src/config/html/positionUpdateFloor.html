@@ -1,0 +1,78 @@
+<html>
+<head>
+<style type="text/css">
+a:link {color:#FFFFFF;}    /* unvisited link */
+a:visited {color:#BDBDBD;} /* visited link */
+a:hover {color:#0000FF;}   /* mouse over link */
+a:active {color:#BDBDBD;}  /* selected link */
+
+/* pushes the page to the full capacity of the viewing area */
+html {height:100%;}
+body {height:100%; margin:0; padding:0;}
+/* prepares the background image to full capacity of the viewing area */
+#bg {position:fixed; top:0; left:0; width:100%; height:100%;}
+/* places the content ontop of the background image */
+#content {position:relative; z-index:1;}
+</style>
+<!--[if IE 6]>
+<style type="text/css">
+/* some css fixes for IE browsers */
+html {overflow-y:hidden;}
+body {overflow-y:auto;}
+#bg {position:absolute; z-index:-1;}
+#content {position:static;}
+</style>
+<![endif]-->
+<script language="JavaScript">
+var xmlhttp;
+if (window.XMLHttpRequest) {
+  xmlhttp=new XMLHttpRequest();
+} else {
+  xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+}
+xmlhttp.onreadystatechange=function() {
+  if (xmlhttp.readyState==4 && xmlhttp.status==200) {
+    document.getElementById("myDiv").innerHTML=xmlhttp.responseText;
+  }
+}
+
+function setLocation(event){
+    pos_x = event.offsetX?(event.offsetX):event.pageX-document.getElementById("locationDiv").offsetLeft;
+    pos_y = event.offsetY?(event.offsetY):event.pageY-document.getElementById("locationDiv").offsetTop;
+    document.getElementById("locationPointer").style.left = (pos_x-12) ;
+    document.getElementById("locationPointer").style.top = (pos_y-41) ;
+    document.getElementById("locationPointer").style.visibility = "visible" ;
+    client_width = document.getElementById("locationDiv").clientWidth;
+    client_height = document.getElementById("locationDiv").clientHeight;
+    document.mapForm.xPosition.value = pos_x * %CMX_MAP_WIDTH% /client_width;
+    document.mapForm.yPosition.value = pos_y * %CMX_MAP_LENGTH%/client_height;
+    
+    xmlhttp.open("POST","/location/update/%CMX_DEVICE_ID%",true);
+    xmlhttp.setRequestHeader("Content-type","application/json");
+    var messageBody = '{';
+    messageBody += '"deviceId":"%CMX_DEVICE_ID%",';
+    messageBody += '"venueId":"%CMX_VENUE_ID%",';
+    messageBody += '"floorId":"%CMX_FLOOR_ID%",';
+    messageBody += '"zoneId":"000",';
+    messageBody += '"mapCoordinate":{"x":"'+document.mapForm.xPosition.value+'","y":"'+document.mapForm.yPosition.value+'"}';
+    messageBody += '}';
+    xmlhttp.send(messageBody);
+}
+</script>
+</head>
+<body>
+<div id="bg"><img src="/image/page_background.png" width="100%" height="100%" alt=""></div>
+<div id="content">
+<div id="banner-title" style="background:url('/image/cisco_banner.png') no-repeat;height:80px;background-size:750px 80px">
+<div id="banner-right" style="position:absolute;left:150;top:25;color:white;font-size:25pt">CMX Location Update For %CMX_DEVICE_ID%</div>
+</div>
+    <form name="mapForm" method="post" onsubmit="return false;">
+			<p align="left" style="color:white;font-size:15px;">
+			Current Location (X:<input type="text" name="xPosition" size="4" disabled/>, Y:<input type="text" name="yPosition" size="4" disabled/>)&nbsp;&nbsp;Click on map to set client location</p>
+        <div id="locationDiv" onclick="setLocation(event)" style="background-image: url('https://%CMX_SERVER_IP%:%CMX_SERVER_PORT%/cmx-cloud-server/api/cmxmobile/v1/maps/image/%CMX_VENUE_ID%/%CMX_FLOOR_ID%'); background-repeat:no-repeat; background-size: contain; height: 100%; width: 100%;">
+            <img src="/image/images/marker-icon.png" id="locationPointer" style="position: relative; visibility: hidden; z-index: 2;">
+        </div>
+    </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<html>
+<head>
+<style type="text/css">
+a:link {color:#FFFFFF;}    /* unvisited link */
+a:visited {color:#BDBDBD;} /* visited link */
+a:hover {color:#0000FF;}   /* mouse over link */
+a:active {color:#BDBDBD;}  /* selected link */
+
+/* pushes the page to the full capacity of the viewing area */
+html {height:100%;}
+body {height:100%; margin:0; padding:0;}
+/* prepares the background image to full capacity of the viewing area */
+#bg {position:fixed; top:0; left:0; width:100%; height:100%;}
+/* places the content ontop of the background image */
+#content {position:relative; z-index:1;}
+</style>
+<!--[if IE 6]>
+<style type="text/css">
+/* some css fixes for IE browsers */
+html {overflow-y:hidden;}
+body {overflow-y:auto;}
+#bg {position:absolute; z-index:-1;}
+#content {position:static;}
+</style>
+<![endif]-->
+<script language="JavaScript">
+</script>
+</head>
+<body>
+<div id="bg"><img src="/image/page_background.png" width="100%" height="100%" alt=""></div>
+<div id="content">
+<div id="banner-title" style="background:url('/image/cisco_banner.png') no-repeat;height:80px;background-size:750px 80px">
+<div id="banner-right" style="position:absolute;left:150;top:25;color:white;font-size:25pt">CMX Add New Device</div>
+</div>
+</br>
+<table style="border:1px solid blue;border-collapse:collapse;color:white;">
+%CMX_INSERT_TABLE_ROWS%
+</table>
+</div>
+</body>
+</html>

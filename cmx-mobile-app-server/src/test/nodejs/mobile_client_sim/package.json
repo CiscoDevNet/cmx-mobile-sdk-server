@@ -1,0 +1,29 @@
+{
+  "name": "cisco-cmx-mobile-client-sim-test",
+  "version": "0.1.0",
+  "description": "CMX Mobile Client Simulation Test",
+  "main": "cmxMobileClientSimTest.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": "",
+  "author": "Cisco",
+  "license": "BSD",
+  "dependencies": {
+    "express": "~3.2.6",
+    "optimist": "~0.5.2",
+    "winston": "~0.7.2",
+    "fs-extra": "~0.6.1",
+    "step": "0.0.5",
+	"async": "~0.2.10"
+  },
+  "devDependencies": {
+    "grunt": "~0.4.1",
+    "grunt-contrib-jshint": "~0.6.0",
+    "grunt-contrib-clean": "~0.4.1",
+    "grunt-contrib-compress": "~0.5.2",
+    "grunt-contrib-copy": "~0.4.1",
+    "grunt-shell": "~0.2.2",
+    "grunt-string-replace": "~0.2.4"
+  }
+}

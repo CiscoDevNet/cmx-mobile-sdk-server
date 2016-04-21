@@ -1,0 +1,54 @@
+#
+# view_config
+#
+
+test_view_config() {
+    # When transitioning to a valid state, always skip this state
+    return $RC_SKIP
+}
+
+get_current_view_config() {
+   return $RC_OK
+}
+
+print_default_view_config() {
+    return $RC_OK
+}
+
+print_current_view_config() {
+    echo "--------------------------------------------------------------" >&2
+    # Print the current configuration of the MSE here 
+    # Starting from initial sate iterate through the GOTO_list
+    temp_state=$STATE_INITIAL
+    while [ $temp_state != $STATE_FINAL ]; do
+	# Check if group state
+	echo $temp_state | grep -q "^group_"
+	in_group_state=$?	
+	# If in group state, print the current configuration
+	if [ $in_group_state = 0 ]; then
+		print_current_$temp_state
+		if [ $? -eq $RC_OK ]; then
+    			echo "--------------------------------------------------------------" >&2
+		fi
+	fi
+	# Go to the next state
+	temp_state=`goto_state $GOTO_NEXT $temp_state`;
+    done
+    return $RC_OK
+}
+
+prompt_view_config() {
+    return $RC_OK
+}
+
+read_view_config() {
+    return $RC_OK
+}
+
+validate_view_config() {
+    return $RC_OK
+}
+
+apply_view_config() {
+    return $RC_OK
+}

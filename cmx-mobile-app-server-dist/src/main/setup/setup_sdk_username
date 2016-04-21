@@ -1,0 +1,67 @@
+#
+# sdk_username 
+#
+
+test_sdk_username() {
+    if [ "$input_group_sdk" = "$ENTER_INPUT" ]; then
+        return $RC_EXEC
+    else
+        return $RC_SKIP
+    fi
+}
+
+reset_sdk_username() {
+    sdk_username="$DEF_SDK_USERNAME"
+    echo "The SDK username will be reset to \"$sdk_username\"" >& 2
+}
+
+print_default_sdk_username() {
+    sdk_username="$DEF_SDK_USERNAME"
+    echo "Default SDK username=[$DEF_SDK_USERNAME]" >& 2
+}
+
+print_current_sdk_username() {
+    if [ -f $USER_PROP_FILE ]; then
+        SDK_USERNAME_CHECK=`wc -m $SDK_USER_PROP_FILE  | awk '{print $1}'`
+        if [ $SDK_USERNAME_CHECK -gt 0 ]; then
+            echo "SDK username is currently configured" >& 2
+        else
+            echo "SDK username has not been configured" >& 2
+        fi
+    else
+        echo "SDK username has not been configured" >& 2
+    fi
+    return $RC_OK
+}
+
+prompt_sdk_username() {
+cat <<EOF >&2
+
+Enter an admin username. 
+The admin user is used to authenticate CMX Mobile App Server SDK APIs.
+
+EOF
+}
+
+read_sdk_username() {
+   read_default "Enter a SDK username" "$sdk_username"
+}
+
+validate_sdk_username() {
+    echo "$read_result" | grep -q '[^-A-Za-z0-9]'
+    if [ $? -eq 0 ]; then
+        echo "The SDK username can only contain letters, numbers, and dashes." >&2
+        return $RC_ERROR
+    fi
+    sdk_username="$read_result"
+
+   return $RC_OK
+}
+
+apply_sdk_username() {
+    if [ "$input_group_sdk" = "$SKIP_INPUT" ]; then
+        return $RC_OK
+    fi
+
+    return $RC_OK
+}

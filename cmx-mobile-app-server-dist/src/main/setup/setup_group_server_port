@@ -1,0 +1,52 @@
+#
+# group_server_port
+#
+
+test_group_server_port() {
+    return $RC_EXEC
+}
+
+prompt_group_server_port() {
+cat <<EOF >&2
+
+EOF
+}
+
+print_default_group_server_port() {
+    print_default_server_port
+}
+
+print_current_group_server_port() {
+    print_current_server_port
+}
+
+read_group_server_port() {
+    if [ ! -n "$input_group_server_port" ]; then
+        input_group_server_port="$SKIP_INPUT"
+    fi
+    read_default "Configure server port (Y)es/(S)kip/(U)se default" "$1"
+}
+
+validate_group_server_port() {
+    validate_group_reply
+
+    if [ $? -eq $RC_OK ]; then
+        input_group_server_port="$input_group_reply"
+
+        if [ $1 != $input_group_server_port ]; then
+            if [ $1 = $RESET_INPUT -a $input_group_server_port = $SKIP_INPUT ]; then
+                print_current_server_port
+            elif [ $input_group_server_port = $RESET_INPUT ]; then
+                reset_server_port
+            fi
+        fi
+
+        return $RC_OK
+    else
+        return $RC_ERROR
+    fi
+}
+
+apply_group_server_port() {
+    return $RC_OK
+}

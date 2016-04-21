@@ -1,0 +1,168 @@
+#
+# verify
+#
+
+test_verify() {
+    return $RC_EXEC
+}
+
+print_current_verify() {
+    return $RC_SKIP
+}
+
+prompt_verify() {
+changes_made=0
+
+    cat <<EOF >&2
+
+Please verify the following setup information.
+
+-----------------------------BEGIN----------------------------
+
+EOF
+    if [ "$input_group_log_level" != "$SKIP_INPUT" ]; then
+        echo "    Log level=$log_level" >&2
+        changes_made=1
+    fi
+
+    if [ "$input_group_cred" != "$SKIP_INPUT" ]; then
+        echo "    Communications username changed" >&2
+        echo "    Communications password changed" >&2
+        changes_made=1
+    fi
+
+    if [ "$input_group_sdk" != "$SKIP_INPUT" ]; then
+        echo "    SDK username changed" >&2
+        echo "    SDK password changed" >&2
+        changes_made=1
+    fi
+
+    if [ "$input_group_server_port" != "$SKIP_INPUT" ]; then
+        echo "    Server port=$server_port" >&2
+        changes_made=1
+    fi
+
+    if [ "$input_group_sdk_port" != "$SKIP_INPUT" ]; then
+        echo "    SDK Server port=$sdk_port" >&2
+        changes_made=1
+    fi
+
+    if [ "$changes_made" -eq 0 ]; then
+        cat <<EOF >&2
+No changes were made to the existing setup. All setup parameters
+will be left as they are.
+EOF
+    fi
+    
+    cat <<EOF >&2
+
+------------------------------END-----------------------------
+
+EOF
+
+    # If in menu based config, display prompt accordingly
+    if [ "$enableMenu" == "$NO" ]; then
+        cat <<EOF >&2
+You may enter "$YES" to proceed with configuration, "$NO" to make
+more changes, or "$READ_BACK" to go back to the previous step.
+
+EOF
+    else
+        cat <<EOF >&2
+You may enter "$YES" to proceed with configuration, "$NO" to make
+more changes.
+
+EOF
+    fi
+    if [ "$changes_made" -eq 1 ]; then
+       echo "Configuration Changed"
+    fi
+}
+
+read_verify() {
+    if [ "$enableMenu" == "$NO" ]; then
+    	read_default "Is the above information correct (yes, no, or $READ_BACK)" ""
+    else
+    	read_default "Is the above information correct (yes or no)" ""
+    fi
+}
+
+check_mandatory() {
+	# Output message for mandatory criteria
+	cat <<EOF >&2
+
+--------------------------------------------------------------
+
+Checking mandatory configuration information...
+
+EOF
+
+	# Default return code is OK
+	ret_code=$RC_OK
+
+	# Check if hostname is configured
+	is_configured_group_cred
+	if [ $? -eq $RC_ERROR ]; then
+		ret_code=$RC_ERROR
+	fi
+
+	if [ $ret_code -eq $RC_OK ]; then
+		cat <<EOF >&2
+
+Mandatory parameters (Credentials username and password)
+have all been configured
+
+--------------------------------------------------------------
+
+EOF
+	else
+		cat <<EOF >&2
+
+** WARNING **
+The above parameters are mandatory and need to be configured
+
+--------------------------------------------------------------
+
+EOF
+   		while true
+    		do
+    			read_default "Ignore and proceed (yes/no)"
+
+    			rr="`echo \"$read_result\" | sed -e 's/ //g' | tr A-Z a-z`"
+    			if [ "$rr" = "y" -o "$rr" = "yes" ]; then
+				# User wants to proceed without configuring mandatory params
+				# Force a change in return status
+				ret_code=$RC_OK
+				break;
+    			elif [ "$rr" = "n" -o "$rr" = "no" ]; then
+				# Valid input. Break the loop
+				break;
+    			fi
+    		done
+	fi
+	return $ret_code
+
+}
+
+validate_verify() {
+    rr="`echo \"$read_result\" | sed -e 's/ //g' | tr A-Z a-z`"
+    if [ "$rr" = "y" -o "$rr" = "yes" ]; then
+	# Check to see if "must have" configs have been configured
+	check_mandatory
+	if [ $? -eq $RC_OK ]; then
+        	verify="$YES"
+	else
+		verify="$NO"
+	fi
+        return $RC_OK
+    elif [ "$rr" = "n" -o "$rr" = "no" ]; then
+        verify="$NO"
+        return $RC_OK
+    fi
+    echo 'Please enter "yes" or "no".' >&2
+    return $RC_ERROR
+}
+
+apply_verify() {
+    return $RC_OK
+}

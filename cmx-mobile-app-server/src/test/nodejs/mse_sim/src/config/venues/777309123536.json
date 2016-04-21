@@ -1,0 +1,9 @@
+{
+"venueId" : "777309123536",
+"streetAddress" : "655 West 34th Street, New York, NY 10001",
+"name" : "Interop",
+"locationUpdateInterval" : 5,
+"imageType" : "none",
+"wifiConnectionMode" : "prompt",
+"preferredNetwork" : [{"ssid":"alpha","password":""},{"ssid":"blizzard","password":""}]
+}

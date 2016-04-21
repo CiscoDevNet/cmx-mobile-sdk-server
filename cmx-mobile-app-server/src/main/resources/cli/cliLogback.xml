@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration>
+    <property resource="config/settings.properties" />
+    <!-- Appenders -->
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>[%5p] %d - %m %n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.cisco.cmxmobile" level="info">
+        <appender-ref ref="console" />
+    </logger>
+</configuration>

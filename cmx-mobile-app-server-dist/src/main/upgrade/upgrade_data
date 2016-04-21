@@ -1,0 +1,31 @@
+if redis.call("EXISTS","CmxMasSchemaVersion") == 1 then
+    
+    -- Determine current schema version number so upgrade can determine upgrade steps
+    -- Number does not correspond to a release number but should be changed when upgrade steps are required
+    
+    local version = redis.call("GET","CmxMasSchemaVersion")
+    if version == "1" then       
+        -- The following will convert all sets to sorted sets
+        -- The scores are all changed to a zero
+        
+        -- Process all the existing keys
+        local allkeys = redis.call("KEYS","*")
+        for _, key in ipairs(allkeys) do
+            -- Find all sets by checking the type to determine if the type is a set
+            local type = redis.call("TYPE",key)
+            if type.ok == "set" then
+                -- Convert the set to a sorted set
+                redis.call("ZINTERSTORE",key,"1",key)
+
+                -- Change all the scores to zero
+                local zelements = redis.call("ZRANGE",key,"0","-1")
+                for _, zelement in ipairs(zelements) do
+                    redis.call("ZADD",key,"0",zelement)
+                end
+            end
+        end
+        return redis.call("SET","CmxMasSchemaVersion","2")
+    end
+else
+    return redis.call("SET","CmxMasSchemaVersion","2")
+end

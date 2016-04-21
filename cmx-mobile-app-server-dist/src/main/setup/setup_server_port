@@ -1,0 +1,88 @@
+#
+# Configure server port
+#
+CONFIG_SERVER_PORT_FILE="$setupHome/../apache-tomcat/conf/server.xml"
+CMX_SETTINGS_PROP_FILE="$setupHome/../apache-tomcat/webapps/cmx-cloud-server/WEB-INF/classes/config/settings.properties"
+
+test_server_port() {
+    if [ "$input_group_server_port" = "$ENTER_INPUT" ]; then
+        return $RC_EXEC
+    else
+        return $RC_SKIP
+    fi
+}
+
+get_current_server_port() {
+    if [ -n "$curr_server_port" ]; then
+        return $RC_OK
+    fi
+
+    curr_server_port=`cat $CONFIG_SERVER_PORT_FILE | grep 'Connector port="[0-9]*"' | sed 's/^.*Connector port=\"//' | sed 's/\".*//'`
+    return $RC_OK
+}
+
+reset_server_port() {
+    server_port="$DEF_SERVER_PORT"
+
+    echo "Server port set to " >& 2
+    echo $server_port >& 2
+}
+
+print_default_server_port() {
+    server_port="$DEF_SERVER_PORT"
+    echo "Default Server Port = [$DEF_SERVER_PORT]" >& 2
+}
+
+print_current_server_port() {
+    get_current_server_port
+
+    echo "Current Server Port = [$curr_server_port]" >& 2
+}
+
+prompt_server_port() {
+    return 0
+}
+
+read_server_port() {
+    if [ ! -n "$server_port" ]; then
+        get_current_server_port
+        read_default "Server port" "$curr_server_port"
+    else
+        read_default "Server port" "$server_port"
+    fi
+}
+
+validate_server_port() {
+    server_port="$read_result"
+    get_current_sdk_port
+    if [ -n "$sdk_port" ]; then
+        if [ "$server_port" = "$sdk_port" ]; then
+            echo "SDK Server port can be the same as the Server port: $sdk_port"
+            return $RC_ERROR
+        fi
+    else
+        if [ "$curr_sdk_port" = "$server_port" ]; then
+            echo "Server port can be the same as the SDK Server port: $server_port"
+            return $RC_ERROR
+        fi
+    fi
+    return $RC_OK
+}
+
+apply_server_port() {
+
+    if [ "$input_group_server_port" = "$SKIP_INPUT" ]; then
+        return $RC_OK
+    fi
+
+    cp -p $CONFIG_SERVER_PORT_FILE $CONFIG_SERVER_PORT_FILE~tmp
+    sed 's/Connector port=\"[0-9]*\"/Connector port=\"'$server_port'\"/' $CONFIG_SERVER_PORT_FILE 1> $CONFIG_SERVER_PORT_FILE~tmp
+    mv $CONFIG_SERVER_PORT_FILE~tmp $CONFIG_SERVER_PORT_FILE
+    cp -p $CMX_SETTINGS_PROP_FILE $CMX_SETTINGS_PROP_FILE~tmp
+    sed 's/webapp.port=[0-9]*/webapp.port='$server_port'/' $CMX_SETTINGS_PROP_FILE 1> $CMX_SETTINGS_PROP_FILE~tmp
+    mv $CMX_SETTINGS_PROP_FILE~tmp $CMX_SETTINGS_PROP_FILE
+    /etc/init.d/cmx-mobile-app-server stop
+    /etc/init.d/cmx-mobile-app-server start
+
+    return $RC_OK
+}

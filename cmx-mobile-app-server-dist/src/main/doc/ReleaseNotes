@@ -1,0 +1,16 @@
+                              Release Notes
+                      CMX Mobile Application Server
+
+Version 1.1.1.x
+---------------
+
+New Features
+------------   
+   *  Documentation added to RPM image to describe configuration, usage and release notes
+   *  Unauthorized servers are now listed when getServerStats.sh script is executed
+
+Fixes
+-----
+   *  Server would attempt to send a blank mobile push notification message for zone entry
+   *  Excessive log messages are added when unauthorized server sends events
+   *  For iOS registration when their is no association event found return a 409 response to SDK

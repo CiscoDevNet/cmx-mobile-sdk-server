@@ -1,0 +1,52 @@
+#
+# group_sdk_port
+#
+
+test_group_sdk_port() {
+    return $RC_EXEC
+}
+
+prompt_group_sdk_port() {
+cat <<EOF >&2
+
+EOF
+}
+
+print_default_group_sdk_port() {
+    print_default_sdk_port
+}
+
+print_current_group_sdk_port() {
+    print_current_sdk_port
+}
+
+read_group_sdk_port() {
+    if [ ! -n "$input_group_sdk_port" ]; then
+        input_group_sdk_port="$SKIP_INPUT"
+    fi
+    read_default "Configure SDK server port (Y)es/(S)kip/(U)se default" "$1"
+}
+
+validate_group_sdk_port() {
+    validate_group_reply
+
+    if [ $? -eq $RC_OK ]; then
+        input_group_sdk_port="$input_group_reply"
+
+        if [ $1 != $input_group_sdk_port ]; then
+            if [ $1 = $RESET_INPUT -a $input_group_sdk_port = $SKIP_INPUT ]; then
+                print_current_sdk_port
+            elif [ $input_group_sdk_port = $RESET_INPUT ]; then
+                reset_sdk_port
+            fi
+        fi
+
+        return $RC_OK
+    else
+        return $RC_ERROR
+    fi
+}
+
+apply_group_sdk_port() {
+    return $RC_OK
+}

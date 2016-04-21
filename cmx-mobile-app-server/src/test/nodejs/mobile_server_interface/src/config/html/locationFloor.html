@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaflet Quick Start Guide Example</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/image/leaflet.css" />
+</head>
+<body>
+    <div id="map" style="width: 1000px; height: 1000px"></div>
+    <img id="cmxMapImageId" src="https://%CMX_SERVER_IP%:%CMX_SERVER_PORT%/cmx-cloud-server/api/cmxmobile/v1/maps/image/%CMX_VENUE_ID%/%CMX_FLOOR_ID%" style="display: none;">
+
+    <script src="/image/leaflet.js"></script>
+    <script src="/image/jquery-2.1.0.min.js"></script>
+    <script>
+
+        var markers = [];
+        var map = null;
+
+        
+        $.getJSON( "/location/devices/%CMX_VENUE_ID%/%CMX_FLOOR_ID%", function( data ) {
+            var clientWidth = document.getElementById("cmxMapImageId").width;
+            var clientHeight = document.getElementById("cmxMapImageId").height;
+            document.getElementById("map").style.width = clientWidth +"px";
+            document.getElementById("map").style.height = clientHeight + "px";
+            map = L.map('map', {
+                maxZoom: 20,
+                minZoom: 20,
+                crs: L.CRS.Simple
+            }).setView([0, 0], 20);
+            var southWest = map.unproject([0, clientHeight], map.getMaxZoom());
+            var northEast = map.unproject([clientWidth, 0], map.getMaxZoom());
+
+            var imageBounds = new L.LatLngBounds(southWest, northEast);
+            L.imageOverlay('https://%CMX_SERVER_IP%:%CMX_SERVER_PORT%/cmx-cloud-server/api/cmxmobile/v1/maps/image/%CMX_VENUE_ID%/%CMX_FLOOR_ID%', imageBounds,{
+                attribution: 'Cisco Maps'
+            }).addTo(map);
+
+            map.setMaxBounds(imageBounds);
+
+            handleDeviceLocationUpdates(data);
+
+            var popup = L.popup();
+
+            function onMapClick(e) {
+                popup
+                    .setLatLng(e.latlng)
+                    .setContent("You clicked the map at " + map.mouseEventToContainerPoint(e.originalEvent).toString())
+                    .openOn(map);
+            }
+            map.on('click', onMapClick);
+          });
+
+        function updateMarkers() {
+            $.getJSON( "/location/devices/%CMX_VENUE_ID%/%CMX_FLOOR_ID%", function( data ) {
+                handleDeviceLocationUpdates(data);
+                setTimeout(updateMarkers, 3000);
+              });
+        }
+        
+        function handleDeviceLocationUpdates(data) {
+            var clientWidth = document.getElementById("cmxMapImageId").width;
+            var clientHeight = document.getElementById("cmxMapImageId").height;
+            for (var i in data) {
+                var positionX = data[i].mapCoordinate.x *clientWidth /  %CMX_MAP_WIDTH%;
+                var positionY = data[i].mapCoordinate.y *clientHeight /  %CMX_MAP_LENGTH%;
+                locationUpdateTime = new Date (data[i].lastLocationUpdateTime);
+                var popupMessage = "<b>MAC Address:</b> " + data[i].macAddress + "<br><b>Map Location:</b> (" + data[i].mapCoordinate.x + "," +  data[i].mapCoordinate.y + ")<br><b>Geo Location:</b> (" + data[i].geoCoordinate.latitude + "," +  data[i].geoCoordinate.longitude + ")<br><b>Zone:</b> " + data[i].zoneName + "<br><b>Last Update Time:</b> " + locationUpdateTime.toLocaleString();
+                if (!markers[data[i].macAddress]) {
+                    markers[data[i].macAddress] = L.marker(map.containerPointToLatLng(L.point(positionX, positionY)),{title: data[i].macAddress, alt: data[i].macAddress}).addTo(map).bindPopup(popupMessage);
+                } else {
+                    markers[data[i].macAddress].setLatLng(map.containerPointToLatLng(L.point(positionX, positionY))).bindPopup(popupMessage).update();
+                }
+            }
+        }
+        
+        setTimeout(updateMarkers, 3000);
+    </script>
+</body>
+</html>

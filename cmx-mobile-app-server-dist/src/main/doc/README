@@ -1,0 +1,142 @@
+                      CMX Mobile Application Server
+
+Overview 
+--------
+   The CMX mobile application server receives location updates, setup, and configuration information  
+   from the Connect and Engage system. It serves the requests from Software Development Kit (SDK)  
+   clients for location information, point of interests, zones, and floors.  
+
+CMX Mobile Application Server Installation 
+------------------------------------------
+   The CMX Mobile Application Server is distributed as an RPM that can be installed on the latest Redhat  
+   or Fedora Linux servers. The installation is done using the RPM install command. 
+
+   Step 1   If you are installing the CMX Mobile Application Server for the first time, use the following command: 
+               rpm -iv cmx-mobile-app-server-version.x86_64.rpm
+
+            The CMX Mobile Application Server is installed in the /opt/cmx-mobile-app-server directory. 
+            If you are upgrading the existing CMX Mobile Application Server, use the following command: 
+               rpm -Uvf cmx-mobile-app-server-version.x86_64.rpm
+
+   Step 2   Run the below setup script to configure a new installation:  
+               /opt/cmx-mobile-app-server/setup/setup.sh 
+
+                [Configuring the CMX Mobile Application Server starts] 
+                Configure CMX Mobile App Server:
+
+                1) Display current configuration   5) SDK Server port
+                2) Communication credentials *     6) Log level
+                3) SDK credentials                 7) ## Verify and apply changes ##
+                4) Server port
+
+                Please enter your choice [1 - 7]:
+
+   Step 3   Configure the communication credentials:
+
+                Please enter your choice [1-7]: 2 
+
+                Enter an admin username. 
+                The admin user is used to authenticate MSE configuration data. Once this  
+                password is updated, it must correspondingly be updated on the MSE UI  
+                page for Mobile App Enablement Parameters so that the MSE can  
+                communicate with the server. 
+
+                Enter a communication username: admin 
+
+                Enter a password for the admin user. 
+                The admin user is used to authenticate MSE configuration data. Once this  
+                password is updated, it must correspondingly be updated on the MSE UI  
+                page for Mobile App Enablemet Parameters so that the MSE can communicate  
+                with the server. 
+
+                Enter communication password: 
+                Confirm communication password:
+
+   Step 4   Verify the setup information and apply changes: 
+
+                Please enter your choice [1-7]: 7 
+
+                Please verify the following setup information. 
+                ------------------------------------BEGIN------------------------------- 
+
+                    Communication username changed 
+                    Communication password changed 
+
+                -------------------------------------End-------------------------------- 
+
+                You may enter “yes” to proceed with configuration, “no” to make more  
+                changes. 
+
+                Configuration changed 
+                Is the above information correct (yes or no): yes 
+
+                ----------------------------------------------------------------------------------- 
+
+                Checking mandatory configuration information... 
+
+                Mandatory parameters (Credentials username and password have all been  
+                configured) 
+
+                ----------------------------------------------------------------------------------- 
+
+                Setup will now attempt to apply the configuration. 
+
+                Setting communication password. 
+                (Fri July 18 17:04:07 PDT 2014) Stopping CMX Mobile App Server ... 
+                (Fri July 18 17:04:07 PDT 2014) Stopping CMX Mobile App Server Apache... 
+                (Fri July 18 17:04:07 PDT 2014) Completed Stopping CMX Mobile App Server ... 
+                (Fri July 18 17:04:07 PDT 2014) Starting CMX Mobile App Server ... 
+                (Fri July 18 17:04:07 PDT 2014) Starting CMX Mobile App Server Apache... 
+                (Fri July 18 17:04:07 PDT 2014) Completed Starting CMX Mobile App Server SDK... 
+                ***Configuration successful*** 
+
+                Exiting setup script 
+
+                Upon success, the settings will be applied and the server will be restarted. 
+
+CMX Mobile Application Server Related Commands 
+----------------------------------------------
+   The below lists the commands that you can use while setting up the CMX Mobile Application  
+   server. The commands are located in /opt/cmx-mobile-app-server/bin directory:
+      "/etc/init.d/cmx-mobile-app-server start"
+                        Start the server
+                        
+      "/etc/init.d/cmx-mobile-app-server stop"                
+                        Stop the server
+
+      "/etc/init.d/cmx-mobile-app-server status"
+                        Check the status of the server
+                        
+      "getServerConfig.sh"                      
+                        Retrieve the venue configuration information that includes buildings,  
+                        floors, zones, and points of interest. If a zone was configured for a floor,
+                        the command shows the zone name and some information about the zone. The  
+                        same for point of interest defined on a floor. Running this command will allow
+                        the user to verify the configurations done in Connect and Engage are showing up 
+                        on the server. 
+
+      "getServerStats.sh"
+                        Displays wireless client counts, notification event counts, mobile application usage
+                        statistics, mobile push notification statistics, and configuration update statistics.  
+                        Each statistic shows a running count, the last updated time, and count per second. 
+                        This can be used to determine if the push notifications are being sent to the server.
+                        By checking the last updated time or running count, a user can get an idea if the server
+                        is being properly updated or not.
+                        
+      "collectDebugInfo.sh"            
+                        Collects all debug related information for Cisco support to examine
+
+      "getLocationByMac.sh <macAddress>"            
+                        Get the clients location by MAC
+
+      "monitorLocationByMac.sh <macAddress>"            
+                        Monitor the clients location by MAC
+                        This command will run till you stop monitoring by entering 
+                        <CTRL+C>. The command updates the terminal with the 
+                        latest location as it is updated on the server. 
+
+      "sendPushNotificationByMac.sh <macAddress> <message>"            
+                        Validate if the client received push notification initiated by the server
+
+      "testPushNotificationByMac.sh <macAddress>"            
+                        Validate if the client received push notification initiated by the server

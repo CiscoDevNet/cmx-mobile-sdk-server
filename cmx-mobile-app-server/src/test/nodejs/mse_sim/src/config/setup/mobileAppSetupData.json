@@ -1,0 +1,22 @@
+[
+{ "lat" : "0",
+  "name" : "Cisco",
+  "description" : "Cisco Venue Description",
+  "lon" : "0",
+  "mseUdId" : "AIR-MSE-3355-K9:V01:KQYGBRD",
+  "mseVenueId" : "12",
+  "venueUdId" : "777309123536",
+  "address" : "3625 Cisco Way, San Jose, CA 95131",
+  "floorList" : [ { "venueUdId" : "777309123536",
+        "mseFloorId" : "7772978952065138",
+        "mseUdId" : "AIR-MSE-3355-K9:V01:KQYGBRD",
+        "mseVenueId" : "12",
+        "name" : "Main Floor",
+		"description" : "Main Floor Description",
+        "filename" : "777297895206518938.gif",
+        "length" : "1154",
+        "width" : "895"
+      }
+    ]
+}
+]

@@ -1,0 +1,7 @@
+
+
+loadDefaults() {
+    DEF_SDK_SERVER_PORT="8085"
+    DEF_SERVER_PORT="8082"
+    DEF_LOG_LEVEL="info"
+}

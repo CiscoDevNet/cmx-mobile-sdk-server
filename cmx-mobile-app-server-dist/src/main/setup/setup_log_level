@@ -1,0 +1,93 @@
+#
+# Configure log level
+#
+
+CONFIG_LOG_FILE="$setupHome/../apache-tomcat/webapps/cmx-cloud-server/WEB-INF/classes/logback.xml"
+SDK_CONFIG_LOG_FILE="$setupHome/../apache-tomcat-sdk/webapps/cmx-cloud-server-sdk/WEB-INF/classes/logback.xml"
+test_log_level() {
+    if [ "$input_group_log_level" = "$ENTER_INPUT" ]; then
+        return $RC_EXEC
+    else
+        return $RC_SKIP
+    fi
+}
+
+get_current_log_level() {
+    if [ -n "$curr_log_level" ]; then
+        return $RC_OK
+    fi
+
+	if [ -f $CONFIG_LOG_FILE ]; then
+        curr_log_level=`cat $CONFIG_LOG_FILE | grep "com.cisco" | sed 's/^.*level=\"//' | sed 's/\".*//'`
+    else
+        curr_log_level="$DEF_LOG_LEVEL"
+    fi
+    return $RC_OK
+}
+
+reset_log_level() {
+    log_level="$DEF_LOG_LEVEL"
+
+    echo "Log level set to " >& 2
+    echo $log_level >& 2
+}
+
+print_default_log_level() {
+    log_level="$DEF_LOG_LEVEL"
+    echo "Default Log Level = [$DEF_LOG_LEVEL]" >& 2
+}
+
+print_current_log_level() {
+    get_current_log_level
+
+    echo "Current Log Level = [$curr_log_level]" >& 2
+}
+
+prompt_log_level() {
+    return 0
+}
+
+read_log_level() {
+    if [ ! -n "$log_level" ]; then
+        get_current_log_level
+        read_default "Log level {info,debug,trace}" "$curr_log_level"
+    else
+        read_default "Log level {info,debug,trace}" "$log_level"
+    fi
+}
+
+validate_log_level() {
+    if [ "$read_result" = "info" ]; then
+        log_level="$read_result"
+        return $RC_OK
+    fi
+    if [ "$read_result" = "debug" ]; then
+        log_level="$read_result"
+        return $RC_OK
+    fi
+    if [ "$read_result" = "trace" ]; then
+        log_level="$read_result"
+        return $RC_OK
+    fi
+    echo "Log level is not correct. Only supported levesl are (info/debug/trace)"
+    return $RC_ERROR
+
+}
+
+apply_log_level() {
+
+    if [ "$input_group_log_level" = "$SKIP_INPUT" ]; then
+        return $RC_OK
+    fi
+
+    cp -p $CONFIG_LOG_FILE $CONFIG_LOG_FILE~tmp
+    sed 's/\"com.cisco.cmxmobile\" level=\".*\"/\"com.cisco.cmxmobile\" level=\"'$log_level'\"/' $CONFIG_LOG_FILE 1> $CONFIG_LOG_FILE~tmp
+    mv $CONFIG_LOG_FILE~tmp $CONFIG_LOG_FILE
+    cp -p $SDK_CONFIG_LOG_FILE $SDK_CONFIG_LOG_FILE~tmp
+    sed 's/\"com.cisco.cmxmobileserver\" level=\".*\"/\"com.cisco.cmxmobileserver\" level=\"'$log_level'\"/' $SDK_CONFIG_LOG_FILE 1> $SDK_CONFIG_LOG_FILE~tmp
+    mv $SDK_CONFIG_LOG_FILE~tmp $SDK_CONFIG_LOG_FILE
+    /etc/init.d/cmx-mobile-app-server stop
+    /etc/init.d/cmx-mobile-app-server start
+
+    return $RC_OK
+}

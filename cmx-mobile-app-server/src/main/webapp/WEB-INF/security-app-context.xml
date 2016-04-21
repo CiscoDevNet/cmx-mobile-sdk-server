@@ -1,0 +1,68 @@
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+    xmlns:beans="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans 
+                    http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+                    http://www.springframework.org/schema/security 
+                    http://www.springframework.org/schema/security/spring-security-3.1.xsd">
+
+    <global-method-security pre-post-annotations="enabled"/>
+    
+    <authentication-manager alias="mobileAppAuthManager">
+        <authentication-provider ref="preAuthProvider" />
+    </authentication-manager>
+    
+    <authentication-manager id="cmxCloudAuthenticationManager">
+      <authentication-provider>
+        <password-encoder hash="sha-256" />
+        <user-service properties="classpath:config/user.properties" />
+      </authentication-provider>
+    </authentication-manager>
+
+    <http pattern="/api/cmxmobile/v1/clients/**" use-expressions="true" entry-point-ref="myAuthenticationEntryPoint">
+        <intercept-url pattern="/api/cmxmobile/v1/clients/location/**" access="hasRole('ROLE_MOBILE_APP_USER')"/>
+        <intercept-url pattern="/api/cmxmobile/v1/routes/clients/**" access="hasRole('ROLE_MOBILE_APP_USER')"/>
+        <intercept-url pattern="/api/cmxmobile/v1/clients/feedback/location/**" access="hasRole('ROLE_MOBILE_APP_USER')"/>
+        <intercept-url pattern="/api/cmxmobile/v1/clients/optOut/**" access="hasRole('ROLE_MOBILE_APP_USER')"/>
+        <custom-filter position="PRE_AUTH_FILTER" ref="preAuthFilter"/>
+    </http>
+    
+    <http pattern="/api/v1/setup/**" use-expressions="true" auto-config='true' authentication-manager-ref="cmxCloudAuthenticationManager">
+        <intercept-url pattern="/api/v1/setup/**" access="hasRole('ROLE_CMX_MOBILE_APP_SERVER_USER')"/>
+    </http>
+    
+    <http pattern="/api/v1/servermetrics/**" use-expressions="true" auto-config='true' authentication-manager-ref="cmxCloudAuthenticationManager">
+        <intercept-url pattern="/api/v1/servermetrics/**" access="hasRole('ROLE_CMX_MOBILE_APP_SERVER_USER')"/>
+    </http>
+   
+    <http pattern="/api/cmxmobileserver/v1/admin/**" use-expressions="true" auto-config='true' authentication-manager-ref="cmxCloudAuthenticationManager">
+        <intercept-url pattern="/api/cmxmobileserver/v1/admin/**" access="hasIpAddress('127.0.0.1')"/>
+    </http>
+    
+    <http pattern="/api/cmxmobileserver/v1/server/**" use-expressions="true" auto-config='true' authentication-manager-ref="cmxCloudAuthenticationManager">
+        <intercept-url pattern="/api/cmxmobileserver/v1/server/**" access="hasIpAddress('127.0.0.1')"/>
+    </http>
+    
+    <http pattern="/api/cmxmobileserver/v1/clients/**" use-expressions="true" auto-config='true' authentication-manager-ref="cmxCloudAuthenticationManager">
+        <intercept-url pattern="/api/cmxmobileserver/v1/clients/**" access="hasRole('ROLE_CMX_MOBILE_APP_SERVER_USER')"/>
+    </http>
+    
+    <beans:bean id="myMobileAppPreAuthUserDataService"
+        class="com.cisco.cmxmobile.security.MobileAppPreAuthenticatedUserDetailsService">
+    </beans:bean>
+    <beans:bean id="myAuthenticationEntryPoint"
+        class="com.cisco.cmxmobile.security.MobileAppUserAuthenticationEntryPoint">
+    </beans:bean>
+    
+    <beans:bean id="preAuthProvider" class="org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationProvider">
+        <beans:property name="preAuthenticatedUserDetailsService">
+            
+                <beans:bean name="userDetailsService" class="com.cisco.cmxmobile.security.MobileAppPreAuthenticatedUserDetailsService"/>
+            
+        </beans:property>
+    </beans:bean>
+    <beans:bean id="preAuthFilter" class="com.cisco.cmxmobile.security.MobileAppPreAuthFilter">
+        <beans:property name="authenticationManager" ref="mobileAppAuthManager" />
+    </beans:bean>
+    
+</beans:beans>

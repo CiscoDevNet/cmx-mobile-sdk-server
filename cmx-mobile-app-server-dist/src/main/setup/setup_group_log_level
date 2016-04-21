@@ -1,0 +1,52 @@
+#
+# group_log_level
+#
+
+test_group_log_level() {
+    return $RC_EXEC
+}
+
+prompt_group_log_level() {
+cat <<EOF >&2
+
+EOF
+}
+
+print_default_group_log_level() {
+    print_default_log_level
+}
+
+print_current_group_log_level() {
+    print_current_log_level
+}
+
+read_group_log_level() {
+    if [ ! -n "$input_group_log_level" ]; then
+        input_group_log_level="$SKIP_INPUT"
+    fi
+    read_default "Configure log level (Y)es/(S)kip/(U)se default" "$1"
+}
+
+validate_group_log_level() {
+    validate_group_reply
+
+    if [ $? -eq $RC_OK ]; then
+        input_group_log_level="$input_group_reply"
+
+        if [ $1 != $input_group_log_level ]; then
+            if [ $1 = $RESET_INPUT -a $input_group_log_level = $SKIP_INPUT ]; then
+                print_current_log_level
+            elif [ $input_group_log_level = $RESET_INPUT ]; then
+                reset_log_level
+            fi
+        fi
+
+        return $RC_OK
+    else
+        return $RC_ERROR
+    fi
+}
+
+apply_group_log_level() {
+    return $RC_OK
+}
